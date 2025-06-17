@@ -2,11 +2,21 @@ import formidable from 'formidable';
 
 export const config = {
   api: {
-    bodyParser: false, // desactivar el body parser para recibir archivos
+    bodyParser: false,
   },
 };
 
 export default async function handler(req, res) {
+  // Configurar headers CORS
+  res.setHeader('Access-Control-Allow-Origin', '*'); // O cambia '*' por tu dominio
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    // Responder preflight CORS
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -25,25 +35,23 @@ export default async function handler(req, res) {
 
     const file = files.file;
 
-    // Leer el archivo temporal
     const fs = require('fs');
-    const path = require('path');
     const fetch = require('node-fetch');
+    const FormData = require('form-data');
 
     try {
       const stream = fs.createReadStream(file.filepath);
+
+      const formData = new FormData();
+      formData.append('file', stream, file.originalFilename);
 
       const response = await fetch('https://pixeldrain.com/api/file', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
+          ...formData.getHeaders(),
         },
-        body: (() => {
-          const FormData = require('form-data');
-          const formData = new FormData();
-          formData.append('file', stream, file.originalFilename);
-          return formData;
-        })(),
+        body: formData,
       });
 
       if (!response.ok) {
